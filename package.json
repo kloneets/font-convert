@@ -1,0 +1,15 @@
+{
+  "name": "font-converter",
+  "version": "1.0.0",
+  "description": "Convert fonts from ttf or otf to web fonts",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "font",
+    "converter"
+  ],
+  "author": "Janis Rublevskis",
+  "license": "MIT"
+}
