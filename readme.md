@@ -11,6 +11,8 @@ If you want to help me, clone repository. Then run those commands from terminal:
 * `gulp watch` - watch js/scss files
 * `npm start` - starts project
 
+You will not have nw SDK tools. If you want to use chrome developer tools, run `npm i nw --nwjs_build_type=sdk` afterwards. 
+
 Structure
 ```text
 font-convert

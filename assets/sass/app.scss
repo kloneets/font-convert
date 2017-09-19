@@ -3,12 +3,27 @@
 html, body {
     margin: 0 auto;
     font-family: Verdana, sans-serif;
-    font-size: 100%;
     box-sizing: border-box;
+    padding: 0 0 50px;
+}
+
+header {
     padding: 0 20px;
 }
 
 h1 {
     font-size: 26px;
     text-align: center;
+}
+
+footer.app-footer {
+    position: absolute;
+    bottom: 0;
+    text-align: center;
+    background: #212121;
+    color: #ffffff;
+    width: 100%;
+    padding: 10px 10px 0;
+    box-sizing: border-box;
+    font-size: 10px;
 }
