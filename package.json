@@ -1,15 +1,37 @@
 {
-  "name": "font-converter",
-  "version": "1.0.0",
-  "description": "Convert fonts from ttf or otf to web fonts",
-  "main": "app.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [
-    "font",
-    "converter"
-  ],
-  "author": "Janis Rublevskis",
-  "license": "MIT"
+    "name": "font-converter",
+    "version": "1.0.0",
+    "description": "Convert fonts from ttf or otf to web fonts",
+    "main": "index.html",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "nw"
+    },
+    "keywords": [
+        "font",
+        "converter"
+    ],
+    "author": "Janis Rublevskis",
+    "license": "MIT",
+    "repository": "https://github.com/kloneets/font-convert",
+    "dependencies": {
+        "jquery": "^3.2.1",
+        "nw": "^0.25.1"
+    },
+    "window": {
+        "toolbar": true,
+        "width": 500,
+        "height": 400
+    },
+    "devDependencies": {
+        "babel-core": "^6.26.0",
+        "babel-preset-es2015": "^6.24.1",
+        "bootstrap-sass": "^3.3.7",
+        "gulp": "^3.9.1",
+        "gulp-babel": "^7.0.0",
+        "gulp-concat-css": "^2.3.0",
+        "gulp-cssmin": "^0.2.0",
+        "gulp-sass": "^3.1.0",
+        "gulp-sourcemaps": "^2.6.1"
+    }
 }
