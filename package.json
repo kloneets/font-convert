@@ -20,11 +20,12 @@
     },
     "window": {
         "toolbar": true,
-        "width": 500,
-        "height": 400
+        "width": 800,
+        "height": 600
     },
     "devDependencies": {
         "bootstrap": "^4.0.0-beta",
+        "fontawesome-scss": "^2.0.4",
         "gulp": "^3.9.1",
         "gulp-concat-css": "^2.3.0",
         "gulp-cssmin": "^0.2.0",

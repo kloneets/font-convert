@@ -1,7 +1,6 @@
 node_modules/
 .idea/*
 assets/css/*
-assets/js/app.js
 assets/maps/*
 
 Thumbs.db

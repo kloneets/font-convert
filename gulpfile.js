@@ -15,8 +15,8 @@ gulp.task("sass", function () {
 });
 
 gulp.task('fonts', function() {
-    return gulp.src('./node_modules/bootstrap-sass/assets/fonts/**/*')
-        .pipe(gulp.dest('assets/fonts'));
+    return gulp.src('./node_modules/fontawesome-scss/fontAwesome.scss')
+        .pipe(gulp.dest('assets/sass'));
 });
 
 gulp.task("watch", function () {
