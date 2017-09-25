@@ -10,14 +10,21 @@ var win = nw.Window.get();
 var app = {
     allowedFontTypes: ["ttf", "otf"],
     fontFiles: [],
+
+    clearButton: null,
+
     weightOptions: {
-        "100": "Thin",
-        "300": "Light",
-        "400": "Regular",
-        "500": "Medium",
-        "700": "Bold",
-        "900": "Black"
+        "100": "Extra light (100)",
+        "200": "Thin (200)",
+        "300": "Light (300)",
+        "400": "Regular (400)",
+        "500": "Medium (500)",
+        "600": "Semi Bold (600)",
+        "700": "Bold (700)",
+        "800": "Black (800)",
+        "900": "Extra Black (900)"
     },
+
 
     styleOptions: {
         "normal": "Normal",
@@ -27,6 +34,8 @@ var app = {
     init: function () {
         this.buildMenu();
         this.fileChooser();
+        this.removeItem();
+        this.clearList();
     },
 
     fileChooser: function () {
@@ -35,10 +44,10 @@ var app = {
             event.preventDefault();
 
             var chooser = document.querySelector("#fonts");
-            chooser.addEventListener("change", function(evt) {
+            chooser.addEventListener("change", function () {
                 scope.parseFonts(this.value);
-                console.log(scope.fontFiles);
                 scope.rebuildList();
+                this.value = '';
             }, false);
 
             chooser.click();
@@ -50,67 +59,163 @@ var app = {
      * @param fonts
      * @returns {*}
      */
-    parseFonts: function(fonts) {
-        if(fonts) {
+    parseFonts: function (fonts) {
+        if (fonts) {
             fonts = fonts.split(';');
-            for(var i = 0; i < fonts.length; i++) {
+            for (var i = 0; i < fonts.length; i++) {
                 var ext = fonts[i].split('.').pop().toLowerCase();
-                if(this.allowedFontTypes.indexOf(ext) !== -1) {
-                    this.fontFiles.push(fonts[i]);
+                if (this.allowedFontTypes.indexOf(ext) !== -1) {
+                    if (!this.isDuplicate(fonts[i])) this.fontFiles.push(fonts[i]);
                 }
             }
         }
-    },
 
-    rebuildList:function () {
-        // todo: parse current list and save options
-        var currentList = [];
-
-        var rows = document.getElementById("font-table");
-        rows = $("tbody", rows);
-
-        for(var i = 0; i < this.fontFiles['length']; i++) {
-            var font = path.normalize(this.fontFiles[i]);
-            var fontName = font.split('/').pop();
-            var row = $('<tr>').data('file', fontName)
-                .append($('<td>').addClass('strong').text(fontName))
-                .append($('<td>').append(this.makeSelect("weight['"+ fontName +"']", this.weightOptions, this.getWeight(fontName))))
-                .append($('<td>').append(this.makeSelect("style['"+ fontName +"']", this.styleOptions, this.getStyle(fontName))))
-                .append($('<td>').append($('<a>').prop("href", "#").addClass('btn btn-sm btn-danger').html($('<i>').addClass('delete'))))
-            rows.append(row);
+        if(this.fontFiles.length > 0) {
+            this.clearButton.show();
+        } else {
+            this.clearButton.hide();
         }
     },
 
-    removeItem:function (font) {
-        // todo: make functionality
+    isDuplicate: function (font) {
+        font = font.replace(/\.(otf|ttf)$/, '');
+        for (var i in this.fontFiles) {
+            if (this.fontFiles.hasOwnProperty(i)) {
+                if (this.fontFiles[i].replace(/\.(otf|ttf)$/, '') === font) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    },
+
+    rebuildList: function () {
+        var scope = this;
+        var tBody = document.getElementById("font-table");
+        tBody = $("tbody", tBody);
+
+        var currentList = [];
+
+        tBody.find('tr').each(function () {
+            var el = $(this);
+            var selects = el.find('select');
+            var fontName = el.data("name");
+            currentList[fontName] = {
+                weight: selects.eq(0).find(":selected").val() || scope.getWeight(fontName),
+                style: selects.eq(1).find(":selected").val() || scope.getStyle(fontName)
+            };
+        });
+
+        tBody.empty();
+
+        for (var i = 0; i < this.fontFiles['length']; i++) {
+            var font = path.normalize(this.fontFiles[i]);
+            var fontName = font.split('/').pop();
+            var curWeight = null, curStyle = null;
+
+            if (typeof currentList[fontName] !== 'undefined') {
+                curWeight = currentList[fontName].weight;
+                curStyle = currentList[fontName].style;
+            } else {
+                curWeight = this.getWeight(fontName);
+                curStyle = this.getStyle(fontName);
+            }
+
+            var row = $('<tr>').data({
+                file: font,
+                name: fontName
+            })
+                .append($('<td>').addClass('strong').text(fontName))
+                .append($('<td>').append(this.makeSelect("weight['" + fontName + "']", this.weightOptions, curWeight)))
+                .append($('<td>').append(this.makeSelect("style['" + fontName + "']", this.styleOptions, curStyle)))
+                .append($('<td>').append($('<a>').prop("href", "#").addClass('btn btn-sm btn-danger remove-font').html($('<i>').addClass('delete'))));
+            tBody.append(row);
+        }
+    },
+
+    removeItem: function () {
+        var scope = this;
+        $(document).on('click', '.remove-font', function (event) {
+            event.preventDefault();
+            var row = $(this).parent().parent();
+            for (var i = 0; i < scope.fontFiles.length; i++) {
+                if (scope.fontFiles.hasOwnProperty(i)) {
+                    if (scope.fontFiles[i] === row.data("file")) {
+                        scope.fontFiles.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+            row.empty().remove();
+
+            if(scope.fontFiles.length === 0) {
+                scope.clearButton.hide();
+            }
+
+        });
     },
 
     clearList: function () {
-        var rows = document.getElementById("font-table");
-        rows = $("tbody", rows);
-        rows.empty();
+        this.clearButton = $(document.getElementById('clear-list'));
+        this.clearButton.click(function (event) {
+            event.preventDefault();
+            var rows = document.getElementById("font-table");
+            rows = $("tbody", rows);
+            rows.empty();
+            this.fontFiles = [];
+            $(this).hide();
+        });
     },
 
     getWeight: function (font) {
-        var weight = "400";
-        // todo: make functionality
+        var regexp;
+        //thin
+        regexp = /(extralightthin|extralightitalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "100";
 
-        return weight;
+        //thin
+        regexp = /(thin|thinitalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "200";
+
+        //light
+        regexp = /(book|demi|light|bookitalic|demiitalic|lightitalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "300";
+
+        //medium
+        regexp = /(medium|mediumitalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "500";
+
+        //semi-bold
+        regexp = /(semibold|demibold|demibolditalic|semibolditalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "600";
+
+        //black
+        regexp = /(flat|extrablack|extrablackitalic|flatitalic|poster|posteritalic|utlrablack|ultrablackitalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "900";
+
+        //bold
+        regexp = /(black|heavy|extrabold|blackitalic|heavyitalic|extrabolditalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "800";
+
+        //bold
+        regexp = /(bold|bolditalic)\.(ttf|otf)$/i;
+        if(font.match(regexp)) return "700";
+
+        //default regular
+        return "400";
     },
 
     getStyle: function (font) {
-        var style = 'normal';
-        // todo: make functionality
-
-        return style;
+        if(font.match(/(italic|it)\.(ttf|otf)$/i)) return "italic";
+        return "normal";
     },
 
     makeSelect: function (name, options, current) {
         var selectGroup = $('<select>').addClass('form-control').prop("name", name);
-        for(var val in options) {
-            if(options.hasOwnProperty(val)) {
-                var option = $('<option>').text(options[val]);
-                if(current === val) {
+        for (var val in options) {
+            if (options.hasOwnProperty(val)) {
+                var option = $('<option>').val(val).text(options[val]);
+                if (current === val) {
                     option.attr("selected", "selected");
                 }
                 selectGroup.append(option);
