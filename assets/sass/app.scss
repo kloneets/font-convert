@@ -46,8 +46,22 @@ footer.app-footer {
     }
 }
 
+@keyframes fa-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .delete {
     @include fa($fa-remove, #fff, 12px);
+}
+
+.loader {
+    @include fa($fa-spinner, #fff, 22px);
+    animation: fa-spin 1.1s infinite linear;
 }
 
 .hide {

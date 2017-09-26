@@ -2,16 +2,21 @@
 
 var $ = require("jquery");
 var path = require("path");
+var fs = require("fs");
 
 document.title += ' ' + process.env.npm_package_version;
 
 var win = nw.Window.get();
 
 var app = {
+    debug: true,
     allowedFontTypes: ["ttf", "otf"],
     fontFiles: [],
 
-    clearButton: null,
+    clearButton: $(document.getElementById('clear-list')),
+    convertFontsButton: $(document.getElementById('convert-fonts')),
+    statusBar: $(document.getElementById('status-bar')),
+    loader: $(document.getElementById('loader')),
 
     weightOptions: {
         "100": "Extra light (100)",
@@ -25,17 +30,35 @@ var app = {
         "900": "Extra Black (900)"
     },
 
-
     styleOptions: {
         "normal": "Normal",
         "italic": "Italic"
     },
 
+    tempPath: path.join(nw.App.dataPath, 'Temp'),
+
+    debugger: function () {
+        if(this.debug) {
+            console.log("App Config path: ", nw.App.dataPath);
+            console.log("Temp path:", this.tempPath);
+        }
+    },
+
+    setStatusMessage: function (message) {
+        this.statusBar.html(message);
+    },
+
     init: function () {
+        this.debugger();
         this.buildMenu();
         this.fileChooser();
         this.removeItem();
         this.clearList();
+        this.generateFonts();
+
+        /**
+         * TODO: clear Temp folder on run
+         */
     },
 
     fileChooser: function () {
@@ -63,7 +86,7 @@ var app = {
         if (fonts) {
             fonts = fonts.split(';');
             for (var i = 0; i < fonts.length; i++) {
-                var ext = fonts[i].split('.').pop().toLowerCase();
+                var ext = this.getExtension(fonts[i]);
                 if (this.allowedFontTypes.indexOf(ext) !== -1) {
                     if (!this.isDuplicate(fonts[i])) this.fontFiles.push(fonts[i]);
                 }
@@ -72,9 +95,17 @@ var app = {
 
         if(this.fontFiles.length > 0) {
             this.clearButton.show();
+            this.convertFontsButton.show();
+            this.setStatusMessage("Fonts loaded");
         } else {
             this.clearButton.hide();
+            this.convertFontsButton.hide();
+            this.setStatusMessage("No fonts found. Please chose ttf or otf font file/s");
         }
+    },
+
+    getExtension: function (fontName) {
+        return fontName.split('.').pop().toLowerCase();
     },
 
     isDuplicate: function (font) {
@@ -90,21 +121,10 @@ var app = {
     },
 
     rebuildList: function () {
-        var scope = this;
         var tBody = document.getElementById("font-table");
         tBody = $("tbody", tBody);
 
-        var currentList = [];
-
-        tBody.find('tr').each(function () {
-            var el = $(this);
-            var selects = el.find('select');
-            var fontName = el.data("name");
-            currentList[fontName] = {
-                weight: selects.eq(0).find(":selected").val() || scope.getWeight(fontName),
-                style: selects.eq(1).find(":selected").val() || scope.getStyle(fontName)
-            };
-        });
+        var currentList = this.currentList();
 
         tBody.empty();
 
@@ -146,17 +166,22 @@ var app = {
                     }
                 }
             }
+
+            scope.setStatusMessage("Font <strong>" + row.data('name') + "</strong> removed");
+
             row.empty().remove();
+
 
             if(scope.fontFiles.length === 0) {
                 scope.clearButton.hide();
+                scope.convertFontsButton.hide();
             }
 
         });
     },
 
     clearList: function () {
-        this.clearButton = $(document.getElementById('clear-list'));
+        var scope = this;
         this.clearButton.click(function (event) {
             event.preventDefault();
             var rows = document.getElementById("font-table");
@@ -164,6 +189,7 @@ var app = {
             rows.empty();
             this.fontFiles = [];
             $(this).hide();
+            scope.setStatusMessage("Font list cleared");
         });
     },
 
@@ -224,6 +250,104 @@ var app = {
         return selectGroup;
     },
 
+    currentList: function () {
+        var tBody = document.getElementById("font-table");
+        tBody = $("tbody", tBody);
+
+        var currentList = [];
+
+        tBody.find('tr').each(function () {
+            var el = $(this);
+            var selects = el.find('select');
+            var fontName = el.data("name");
+            currentList[fontName] = {
+                weight: selects.eq(0).find(":selected").val() || scope.getWeight(fontName),
+                style: selects.eq(1).find(":selected").val() || scope.getStyle(fontName),
+                path: el.data("file")
+            };
+        });
+
+        return currentList;
+    },
+
+    generateFonts: function () {
+        var scope = this;
+        this.convertFontsButton.click(function (event) {
+            event.preventDefault();
+            var currentList = scope.currentList();
+            if(Object.keys(currentList).length > 0) {
+                for(var fontName in currentList) {
+                    if(currentList.hasOwnProperty(fontName)) {
+                        var ext = scope.getExtension(fontName);
+                        var otfFont = null;
+                        var ttfFont = null;
+                        scope.copy(currentList[fontName].path, scope.tempPath);
+                        if(ext === 'ttf') {
+                            otfFont = scope.makeOTF(currentList[fontName].path);
+                        } else {
+                            ttfFont = scope.makeTTF(currentList[fontName].path);
+                        }
+
+                    }
+                }
+            } else {
+                scope.setStatusMessage("Font list is empty. Nothing to do");
+                scope.convertFontsButton.hide();
+            }
+        });
+    },
+
+    makeOTF: function (ttfFont) {
+
+    },
+
+    makeTTF: function (otfFont) {
+
+    },
+
+    makeEOT: function (otfFont) {
+
+    },
+
+    makeSVG: function (otfFont) {
+
+    },
+
+    makeWOFF: function (otfFont) {
+
+    },
+
+    makeWOFF2: function (otfFont) {
+
+    },
+
+    copy: function (sourceFile, targetDir, newName) {
+        var scope = this;
+        newName = newName || sourceFile.split('/').pop();
+        if (!fs.existsSync(targetDir)){
+            fs.mkdirSync(targetDir);
+        }
+
+        var targetFile = path.join(targetDir, newName);
+
+
+
+        var rd = fs.createReadStream(sourceFile);
+        rd.on("error", function (error) {
+            console.log(error);
+        });
+
+        var wr = fs.createWriteStream(targetFile);
+        wr.on("error", function (error) {
+            console.log(error);
+        });
+        wr.on("close", function () {
+            if(scope.debug) console.log("Done");
+        });
+        rd.pipe(wr);
+
+    },
+
     buildMenu: function () {
 
         var fileMenu = new nw.MenuItem({
@@ -247,7 +371,7 @@ var app = {
         fileSubMenu.append(new nw.MenuItem({
             label: "About",
             click: function () {
-                // todo: make about window
+                // todo: make "about" window
             },
             key: "a",
             modifiers: "alt"

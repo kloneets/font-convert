@@ -13,7 +13,7 @@
     <div class="row">
         <div class="col">
             <p>
-                <button id="chose-fonts" class="btn btn-primary">Chose font/s</button>
+                <button id="chose-fonts" class="btn btn-success">Chose font/s</button>
                 <input id="fonts" type="file" multiple class="hide" accept=".ttf,.otf">
 
                 <button id="clear-list" class="btn btn-primary btn-danger float-right hide">Clear list</button>
@@ -29,13 +29,24 @@
                     <th>Font</th>
                     <th>Weight</th>
                     <th>Style</th>
-                    <th>Options</th>
+                    <th> </th>
                 </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
             </form>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-2">
+            <span id="loader" class="loader hide"></span>
+        </div>
+        <div class="col-8 text-center">
+            <small id="status-bar"></small>
+        </div>
+        <div class="col2">
+            <button class="btn btn-primary float-right hide" id="convert-fonts">Convert!</button>
         </div>
     </div>
 </div>
