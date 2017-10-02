@@ -55,6 +55,10 @@ footer.app-footer {
     }
 }
 
+.modal {
+    color: #181818;
+}
+
 .delete {
     @include fa($fa-remove, #fff, 12px);
 }

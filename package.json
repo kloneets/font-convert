@@ -15,8 +15,14 @@
     "license": "MIT",
     "repository": "https://github.com/kloneets/font-convert",
     "dependencies": {
+        "async": "^2.5.0",
+        "bootstrap.native": "^2.0.16",
         "jquery": "^3.2.1",
-        "nw": "^0.25.2"
+        "nw": "^0.25.2",
+        "otf2ttf": "^1.1.2",
+        "ttf2eot": "^2.0.0",
+        "ttf2woff": "^2.0.1",
+        "ttf2woff2": "^2.0.3"
     },
     "window": {
         "toolbar": true,
