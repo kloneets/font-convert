@@ -16,15 +16,12 @@ Structure
 font-convert
 |-assets
 | |-css (compiled css)
-| |-fonts
-| | |-bootstrap(bootstrap icon fonts)
-| |   |- ...
-| |-js
-| | |-dev (development ES6)
-| | | |- ...
-| | |- *.js (compiled js files - most likely only app.js)
 | |-maps (source maps for assets)
 | |-sass (sass files)
+|-js
+| |-dev
+| | |- ...
+| |- *.js
 |-node_modules (only after npm install)
 |-.gitignore
 |-gulpfile.js

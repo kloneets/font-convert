@@ -30,7 +30,14 @@ var helper = {
     },
 
     live: function(event, selector, callback, context) {
-        if(selector.match(/^\./)) { //class
+        if (selector.match(/^#/)) {
+            selector = selector.replace(/^#/, '');
+            this.addEvent(context || document, event, function(e) {
+                var found, el = e.target || e.srcElement;
+                while (el && !(found = el.id === selector)) el = el.parentElement;
+                if (found) callback.call(el, e);
+            });
+        } else {
             this.addEvent(context || document, event, function(e) {
                 var qs = (context || document).querySelectorAll(selector);
                 if (qs) {
@@ -41,14 +48,8 @@ var helper = {
                     if (index > -1) callback.call(el, e);
                 }
             });
-        } else {
-            selector = selector.replace(/^#/, '');
-            this.addEvent(context || document, event, function(e) {
-                var found, el = e.target || e.srcElement;
-                while (el && !(found = el.id === selector)) el = el.parentElement;
-                if (found) callback.call(el, e);
-            });
         }
+
     },
     show: function(el) {
         el.style.display = 'block';
@@ -70,12 +71,43 @@ var helper = {
         var template = document.createElement('template');
         template.innerHTML = html;
         return template.content.firstChild;
+    },
+    debugLines: 1,
+    debug: function (data) {
+        var dw = this.createDebugWin();
+        dw.value = "\n" + this.debugLines++ + '. ' + data.toString() + dw.value;
+        console.log(data.toString());
+    },
+    createDebugWin: function () {
+        var dw = document.getElementById('debug-window');
+        if(dw === null) {
+            var newDw = '<div class="form-group">' +
+                '    <label for="exampleFormControlTextarea1">Debug window</label>' +
+                '    <textarea id="debug-window" class="form-control" id="exampleFormControlTextarea1" rows="3"></textarea>' +
+                '  </div>';
+            this.append(document.querySelector('.container'), newDw);
+            dw = document.getElementById('debug-window');
+        }
+        return dw;
     }
 };
 
 var app = {
 
     init: function () {
+        /**
+         * All _blank links to external browser
+         */
+        var scope = this;
+        helper.live('click', 'a[target=_blank]', function (event) {
+            event.preventDefault();
+            nw.Shell.openExternal(this.href);
+            if(scope.isDebug()) {
+                helper.debug('External click: ' + this.href);
+            }
+        });
+
+
         this.initSettings();
         this.debugger();
         this.emptyTemp();
@@ -96,7 +128,7 @@ var app = {
      * default settings
      */
     defaultSettings: {
-        debug: true,
+        debug: 1,
         settingsFile: 'font-convert-settings.json',
 
         /**
@@ -115,7 +147,7 @@ var app = {
             focus: ''
         };
         if (this.isDebug()) {
-            console.log("Settings window opened");
+            helper.debug("Settings window opened");
         }
         if (options.focus) {
             document.getElementById('settings-window').addEventListener("shown.bs.modal", function () {
@@ -150,56 +182,112 @@ var app = {
         if (newSettings) {
             this.settings = helper.extend(this.settings, newSettings)
         }
+
+        var debugWindow = document.getElementById("debug-window");
+        if(!this.settingsGet("debug")) {
+            if(debugWindow) {
+                debugWindow = debugWindow.parentNode;
+                debugWindow.parentNode.removeChild(debugWindow);
+            }
+        } else {
+            if(!debugWindow) {
+                helper.createDebugWin();
+            }
+        }
     },
 
     /**
      * save settings to file
      *
      * @param settings object
-     * @param callback function
-     * @todo on changing fontForge path, check if it is valid
      */
-    saveSettings: function (settings, callback) {
+    saveSettings: function (settings) {
         var filePath = path.join(nw.App.dataPath, this.settings.settingsFile);
-        var scope = this;
-        fs.writeFile(filePath, settings, function (err) {
-            if (err) {
-                if (scope.isDebug()) {
-                    console.info("There was an error attempting to save your data.");
-                    console.warn(err.message);
-                }
-            } else if (callback) {
-                callback();
-            } else {
-                scope.reloadSettings(settings);
+        var success = false;
+        try {
+            fs.writeFileSync(filePath, JSON.stringify(settings), "utf8");
+            success = true;
+            if(this.isDebug()) {
+                helper.debug("Settings saved to: " + filePath);
             }
-        });
+        } catch(e) {
+            if(this.isDebug()) {
+                helper.debug("There was an error attempting to save your data.");
+            }
+        }
+
+        return success;
+    },
+
+    putSettingsToView: function (settings) {
+        this.putSettingToView("fontForgePath", settings.fontForgePath || "");
+        this.putSettingToView("debug", settings.debug || "");
+    },
+
+    putSettingToView: function (id, val) {
+        switch (id) {
+            case "debug": //checkbox
+                document.getElementById(id).checked = parseInt(val, 10) === 1;
+                break;
+            default:
+                document.getElementById(id).value = val;
+                break;
+        }
     },
 
     /**
      * init settings
      */
     initSettings: function () {
+        var scope = this;
         this.reloadSettings(this.defaultSettings);
         var settings = {};
         try {
-            settings = require(path.join(nw.App.dataPath, this.settings.settingsFile));
+            settings = JSON.parse(fs.readFileSync(path.join(nw.App.dataPath, this.settings.settingsFile)).toString("utf-8"));
         } catch (e) {
             if (this.isDebug()) {
-                console.log('Settings file cannot be found! No saved yet');
-                // console.log(e);
+                helper.debug('Settings file cannot be found! No saved yet');
             }
         }
+
         this.reloadSettings(settings);
+
+        this.putSettingsToView(settings);
+
+        helper.live('click', '#save-settings', function (event) {
+            event.preventDefault();
+            var fontForgeField = document.getElementById('fontForgePath');
+            var fontForgePath = fontForgeField.value.replace(/^\s+/, '').replace(/\s+/, '');
+            var canHide = true;
+            if(fontForgePath !== '' && fontForgePath !== settings.fontForgePath) {
+                if(scope.checkForFontForge(fontForgePath)) {
+                    settings.fontForgePath = fontForgePath;
+                } else {
+                    canHide = false;
+                    fontForgeField.classList.add("is-invalid");
+                }
+            } else {
+                fontForgeField.classList.remove("is-invalid");
+            }
+
+            settings.debug = document.getElementById("debug").checked ? 1 : 0;
+            scope.reloadSettings(settings);
+            scope.putSettingsToView(settings);
+            if(!scope.saveSettings(scope.settings)) {
+                scope.showWarning("Could not save settings to system. Please check permissions for: <strong>" + nw.App.dataPath + "</strong>" );
+            }
+            if(canHide) {
+                scope.settingsModal.hide();
+            }
+        });
+
+        helper.live('click', '#cancel-settings', function () {
+            scope.putSettingsToView(settings);
+        });
 
         if (!this.settingsGet("fontForgePath")) {
             this.checkForFontForge();
         }
-        if (!this.settingsGet("fontForgePath")) {
-            this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it or provide path to executable in <a href='#' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
-        }
-        this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it or provide path to executable in <a href='#' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
-
     },
 
     /** ----------------------- settings ----------------------- **/
@@ -234,13 +322,13 @@ var app = {
     tempPath: path.join(nw.App.dataPath, 'Temp'),
 
     isDebug: function () {
-        return this.settings.debug === true;
+        return this.settings.debug === 1;
     },
 
     debugger: function () {
         if (this.isDebug()) {
-            console.log("App Config path: ", nw.App.dataPath);
-            console.log("Temp path:", this.tempPath);
+            helper.debug("App Config path: " + nw.App.dataPath);
+            helper.debug("Temp path:" + this.tempPath);
         }
     },
 
@@ -346,18 +434,22 @@ var app = {
         for (var i = 0; i < this.fontFiles['length']; i++) {
             var font = path.normalize(this.fontFiles[i]);
             var fontName = font.split('/').pop();
-            var curWeight = null, curStyle = null;
+            var curWeight = null, curStyle = null, curName = '';
 
             if (typeof currentList[fontName] !== 'undefined') {
                 curWeight = currentList[fontName].weight;
                 curStyle = currentList[fontName].style;
+                curName = currentList[fontName].name;
             } else {
                 curWeight = this.getWeight(fontName);
                 curStyle = this.getStyle(fontName);
+                curName = fontName.replace(/\.[a-z]+$/i, '');
+                curName = curName.replace(/-[a-z0-9]+$/i, '');
             }
 
             var html = '<tr data-file="' + font + '" data-name="' + fontName + '">'
                 + '<td class="strong">' + fontName + '</td>'
+                + '<td><input class="form-control" name="name[\'' + fontName + '\']" value="' + curName + '"></td>'
                 + '<td>' + this.makeSelect("weight['" + fontName + "']", this.weightOptions, curWeight) + '</td>'
                 + '<td>' + this.makeSelect("style['" + fontName + "']", this.styleOptions, curStyle) + '</td>'
                 + '<td><a href="#" class="btn btn-sm btn-danger remove-font"><i class="delete"></i></a></td>'
@@ -466,11 +558,13 @@ var app = {
         for(var i = 0, row; row = tBody.rows[i]; i++) {
             var selects = row.getElementsByTagName('select');
             var fontName = row.dataset.name;
+            var name = row.getElementsByTagName('input')[0].value;
             var path = row.dataset.file;
             currentList[fontName] = {
                 weight: selects[0].options[selects[0].selectedIndex].value,
                 style: selects[1].options[selects[1].selectedIndex].value,
-                path: path
+                path: path,
+                name: name
             }
         }
 
@@ -501,7 +595,6 @@ var app = {
     },
 
     makeTTF: function (otfFont) {
-        var otf2ttf = require("otf2ttf");
 
     },
 
@@ -532,15 +625,15 @@ var app = {
 
         var rd = fs.createReadStream(sourceFile);
         rd.on("error", function (error) {
-            console.log(error);
+            helper.debug(error);
         });
 
         var wr = fs.createWriteStream(targetFile);
         wr.on("error", function (error) {
-            console.log(error);
+            helper.debug(error);
         });
         wr.on("close", function () {
-            if (scope.isDebug()) console.log("Done");
+            if (scope.isDebug()) helper.debug("Done");
         });
         rd.pipe(wr);
 
@@ -554,13 +647,13 @@ var app = {
         var success = true;
         fs.unlink(file, function (err) {
             if (err) {
-                console.log(err);
+                helper.debug(err);
                 success = false;
             }
         });
 
         if (this.isDebug()) {
-            console.log("Deleted: " + file);
+            helper.debug("Deleted: " + file);
         }
 
         return success;
@@ -580,23 +673,40 @@ var app = {
     /**
      * get fontforge Path
      */
-    checkForFontForge: function () {
+    checkForFontForge: function (rewritePath) {
+        rewritePath = rewritePath || false;
         var fontForgePath = false;
+        var stdout = null;
+        if(rewritePath) {
+            try {
+                stdout = exec(rewritePath + ' -version');
+                this.settingsSet("fontForgePath", rewritePath);
+                if (this.isDebug()) {
+                    helper.debug("Custom ff path: " + stdout.toString());
+                }
+                return true;
+            } catch(e) {
+                if (this.isDebug()) {
+                    helper.debug(e);
+                }
+                return false;
+            }
+        }
         switch (os.platform()) {
             case 'darvin' : // macOs
                             // get command
                 break;
             case 'linux':
                 try {
-                    var stdout = exec('command -v fontforge');
-                    fontForgePath = stdout.toString("utf-8");
+                    stdout = exec('command -v fontforge');
+                    fontForgePath = stdout.toString();
                     if (this.isDebug()) {
-                        console.log("command: ", stdout.toString("utf-8"));
+                        helper.debug("command: " + fontForgePath);
                     }
                     this.settingsSet("fontForgePath", fontForgePath);
                 } catch (e) {
                     if (this.isDebug()) {
-                        console.log(e);
+                        helper.debug(e);
                     }
                 }
                 break;
@@ -606,6 +716,10 @@ var app = {
                 break;
             default:
                 return false;
+        }
+
+        if (!this.settingsGet("fontForgePath")) {
+            this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it from <a target='_blank' href='https://fontforge.github.io'>FontForge official page</a> or provide path to executable in <a href='#' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
         }
     },
 
