@@ -34,10 +34,7 @@ font-convert
 
 * make css for fonts
 * make demo html for fonts
-* convert to otf
-* convert to ttf
 * convert to svg
-* convert to eot
 * convert to woff
 * convert to woff2
 * save all to directory

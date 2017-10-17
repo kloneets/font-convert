@@ -1,5 +1,5 @@
 {
-    "name": "font-converter",
+    "name": "font-convert",
     "version": "1.0.0",
     "description": "Convert fonts from ttf or otf to web fonts",
     "main": "index.html",
@@ -16,6 +16,7 @@
     "repository": "https://github.com/kloneets/font-convert",
     "dependencies": {
         "bootstrap.native": "^2.0.16",
+        "microbuffer": "^1.0.0",
         "nw": "^0.25.2",
         "otf2ttf": "^1.1.2",
         "ttf2eot": "^2.0.0",
