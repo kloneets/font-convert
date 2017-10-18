@@ -1,7 +1,7 @@
 #!/usr/local/bin/fontforge
 
 Open($1);
-fontFile = $fontname+".ttf";
+fontFile = $fontname+"."+$3;
 Print('{');
 Print('    "fontName":    "' + $fontname + '",');
 Print('    "fontFamily":  "' + $familyname + '",');
@@ -11,6 +11,5 @@ Print('    "fontPath": "' + $2 + '",');
 Print('    "copyright":   "' + $copyright + '"');
 Print('}');
 
-#Generate($1:h+"/"+$fontname+".ttf");
 Generate($2+"/"+fontFile);
 Quit(0);

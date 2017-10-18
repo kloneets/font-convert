@@ -34,7 +34,4 @@ font-convert
 
 * make css for fonts
 * make demo html for fonts
-* convert to svg
-* convert to woff
-* convert to woff2
 * save all to directory
