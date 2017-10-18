@@ -12,8 +12,7 @@ var path = require("path"),
     exec = require("child_process").execSync,
     bn = require("bootstrap.native"),
     os = require("os"),
-    ttf2eot = require(path.resolve(process.cwd(), path.join('js', 'ttf2eot.js'))),
-    ttf2woff2 = require("ttf2woff2");
+    ttf2eot = require(path.resolve(process.cwd(), path.join('js', 'ttf2eot.js')));
 
 document.title += ' ' + process.env.npm_package_version;
 
@@ -686,20 +685,6 @@ var app = {
         var script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
         helper.debug("TTF to WOFF2...");
         return this.fontForge(script, fontFile, 'woff2');
-    },
-
-    makeWOFF2_bup: function (ttfFont) {
-        var input = fs.readFileSync(path.join(ttfFont.fontPath, ttfFont.fontFile));
-        fs.writeFileSync(path.join(ttfFont.fontPath, ttfFont.fontName + '.woff2'), ttf2woff2(input));
-        helper.debug("TTF to EOT...");
-        return {
-            copyright: ttfFont.copyright,
-            fontFamily: ttfFont.fontFamily,
-            fontName: ttfFont.fontName,
-            fontPath: ttfFont.fontPath,
-            fontVersion: ttfFont.fontVersion,
-            fontFile: ttfFont.fontName + '.woff2'
-        };
     },
 
     copy: function (sourceFile, targetDir, newName) {
