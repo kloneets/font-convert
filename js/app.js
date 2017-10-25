@@ -77,7 +77,7 @@ var helper = {
     debug: function (data) {
         var dw = this.createDebugWin();
         console.log(data);
-        if(typeof data === 'object') {
+        if (typeof data === 'object') {
             data = JSON.stringify(data);
         }
         dw.value = "\n" + this.debugLines++ + '. ' + data.toString() + dw.value;
@@ -120,11 +120,8 @@ var app = {
         this.removeItem();
         this.clearList();
         this.generateFonts();
+        this.pack();
         this.clickEvents();
-
-        /**
-         * TODO: clear Temp folder on run
-         */
     },
 
     /** =========================== settings ===================================== **/
@@ -301,11 +298,13 @@ var app = {
 
     clearButton: document.getElementById('clear-list'),
     convertFontsButton: document.getElementById('convert-fonts'),
+    packFontsButton: document.getElementById('pack-fonts'),
     statusBar: document.getElementById('status-bar'),
     loader: document.getElementById('loader'),
     settingsModal: (new bn.Modal(document.getElementById('settings-window'))),
     aboutModal: (new bn.Modal(document.getElementById('about'))),
 
+    generatedFonts: [],
 
     weightOptions: {
         "100": "Extra light (100)",
@@ -586,23 +585,46 @@ var app = {
                     if (currentList.hasOwnProperty(fontName)) {
                         var ext = scope.getExtension(fontName);
                         var ttfFont = null;
+                        scope.setStatusMessage(fontName);
                         scope.copy(currentList[fontName].path, scope.tempPath);
+                        scope.generatedFonts[fontName] = {
+                            name: currentList[fontName].name,
+                            style: currentList[fontName].style,
+                            weight: currentList[fontName].weight
+                        };
                         if (ext === 'otf') {
                             ttfFont = scope.makeTTF(currentList[fontName].path);
-                            helper.debug(ttfFont);
+                            scope.setStatusMessage(fontName + ": OTF to TTF");
                         } else {
                             ttfFont = scope.ttfInfo(currentList[fontName].path);
                             scope.copy(currentList[fontName].path, scope.tempPath, ttfFont.fontFile);
-                            helper.debug(ttfFont);
+                            scope.setStatusMessage(fontName + ": TTF info...");
                         }
-
-                        scope.makeEOT(ttfFont);
-                        scope.makeSVG(ttfFont);
-                        scope.makeWOFF(ttfFont);
-                        scope.makeWOFF2(ttfFont);
+                        scope.generatedFonts[fontName].ttf = path.join(ttfFont.fontPath, ttfFont.fontFile);
+                        scope.generatedFonts[fontName].ttfName = ttfFont.fontFile;
+                        scope.setStatusMessage(fontName + ": TTF to EOT");
+                        var eotFont = scope.makeEOT(ttfFont);
+                        scope.generatedFonts[fontName].eot = path.join(eotFont.fontPath, eotFont.fontFile);
+                        scope.generatedFonts[fontName].eotName = eotFont.fontFile;
+                        scope.setStatusMessage(fontName + ": TTF to SVG");
+                        var svgFont = scope.makeSVG(ttfFont);
+                        scope.generatedFonts[fontName].svg = path.join(svgFont.fontPath, svgFont.fontFile);
+                        scope.generatedFonts[fontName].svgName = svgFont.fontFile;
+                        scope.setStatusMessage(fontName + ": TTF to WOFF");
+                        var woffFont = scope.makeWOFF(ttfFont);
+                        scope.generatedFonts[fontName].woff = path.join(woffFont.fontPath, woffFont.fontFile);
+                        scope.generatedFonts[fontName].woffName = woffFont.fontFile;
+                        scope.setStatusMessage(fontName + ": TTF to WOFF2");
+                        var woff2Font = scope.makeWOFF2(ttfFont);
+                        scope.generatedFonts[fontName].woff2 = path.join(woff2Font.fontPath, woff2Font.fontFile);
+                        scope.generatedFonts[fontName].woff2Name = woff2Font.fontFile;
                     }
-                    
                 }
+                scope.setStatusMessage("Generating CSS");
+                scope.generateCss();
+                scope.setStatusMessage("Font converting done. Proceed to save!");
+                helper.hide(scope.convertFontsButton);
+                helper.show(scope.packFontsButton);
             } else {
                 scope.setStatusMessage("Font list is empty. Nothing to do");
                 helper.hide(scope.convertFontsButton);
@@ -663,7 +685,7 @@ var app = {
         var fontFile = ttfFont.fontFile.replace(/\.ttf$/, '') + '.eot';
         fs.writeFileSync(path.join(this.tempPath, fontFile), eot);
         helper.debug("TTF to EOT...");
-        return helper.extend({}, ttfFont, { fontFile: fontFile });
+        return helper.extend({}, ttfFont, {fontFile: fontFile});
     },
 
     makeSVG: function (ttfFont) {
@@ -687,6 +709,91 @@ var app = {
         return this.fontForge(script, fontFile, 'woff2');
     },
 
+    generateCss: function () {
+        helper.debug(this.generatedFonts);
+        var css = "";
+        if (Object.keys(this.generatedFonts).length > 0) {
+            for (var fontName in this.generatedFonts) {
+                if (this.generatedFonts.hasOwnProperty(fontName)) {
+                    css += "@font-face {\n";
+                    css += "\tfont-family: '" + this.generatedFonts[fontName].name + "';\n";
+                    css += "\tfont-weight: '" + this.generatedFonts[fontName].weight + "';\n";
+                    css += "\tfont-style: '" + this.generatedFonts[fontName].style + "';\n";
+                    css += "\tsrc: url('../fonts/" + this.generatedFonts[fontName].eotName + "#iefix') format('embedded-opentype'),\n";
+                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woff2Name + "') format('woff2'),\n";
+                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woffName + "') format('woff'),\n";
+                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].ttfName + "') format('truetype'),\n";
+                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].svgName + "') format('svg');\n";
+                    css += "};\n\n";
+                }
+            }
+        }
+        try {
+            fs.writeFileSync(path.join(this.tempPath, 'fonts-style.css'), css, "utf8");
+            helper.debug(css);
+        } catch (e) {
+            helper.debug(e);
+        }
+    },
+
+    pack: function () {
+        var scope = this;
+        this.packFontsButton.addEventListener('click', function (event) {
+            event.preventDefault();
+            document.getElementById("save-to").click();
+        });
+        document.getElementById('save-to').addEventListener('change', function (event) {
+            event.preventDefault();
+            if(this.value === '') return false;
+            helper.debug("fired save to " + this.value);
+            scope.setStatusMessage("Creating directories");
+            var savePath = this.value;
+            if (!fs.existsSync(savePath)) {
+                fs.mkdirSync(savePath);
+            }
+
+
+            var fontsDir = path.join(savePath, 'fonts');
+            if (!fs.existsSync(fontsDir)) {
+                fs.mkdirSync(fontsDir);
+            }
+            // this.emptyDirectory(fontsDir);
+
+            var cssDir = path.join(savePath, 'css');
+            if (!fs.existsSync(cssDir)) {
+                fs.mkdirSync(cssDir);
+            }
+            // this.emptyDirectory(cssDir);
+
+            scope.setStatusMessage("Copying fonts");
+            if (Object.keys(scope.generatedFonts).length > 0) {
+                for (var fontName in scope.generatedFonts) {
+                    if (scope.generatedFonts.hasOwnProperty(fontName)) {
+                        scope.setStatusMessage("Copying: " + fontName);
+                        scope.copy(scope.generatedFonts[fontName].ttf, fontsDir);
+                        scope.copy(scope.generatedFonts[fontName].eot, fontsDir);
+                        scope.copy(scope.generatedFonts[fontName].svg, fontsDir);
+                        scope.copy(scope.generatedFonts[fontName].woff, fontsDir);
+                        scope.copy(scope.generatedFonts[fontName].woff2, fontsDir);
+                    }
+                }
+            }
+            scope.setStatusMessage("Copying css");
+            scope.copy(path.join(scope.tempPath, 'fonts-style.css'), cssDir, 'fonts.css');
+            scope.copy(path.resolve('./', 'fonts-done-tpl.html'), savePath, 'readme.html');
+            scope.setStatusMessage("Collecting garbage...");
+            scope.emptyTemp();
+            var rows = document.querySelector("#font-table tbody");
+            rows.innerHTML = '';
+            this.fontFiles = [];
+            scope.generatedFonts = [];
+            helper.hide(scope.packFontsButton);
+            scope.setStatusMessage("All done!");
+            nw.Shell.showItemInFolder(path.join(savePath, 'readme.html'));
+            this.value = '';
+        }, false);
+    },
+
     copy: function (sourceFile, targetDir, newName) {
         newName = newName || sourceFile.split('/').pop();
         if (!fs.existsSync(targetDir)) {
@@ -696,35 +803,26 @@ var app = {
         fs.copyFileSync(sourceFile, targetFile);
     },
 
-    deleteFile: function (file) {
-        if (!fs.existsSync(file)) {
-            return true;
-        }
-
-        var success = true;
-        fs.unlink(file, function (err) {
-            if (err) {
-                helper.debug(err);
-                success = false;
+    emptyDirectory: function (dir, firstDir) {
+        firstDir = firstDir || true;
+        var scope = this;
+        if (fs.existsSync(dir)) {
+            fs.readdirSync(dir).forEach(function (file) {
+                var curPath = path.join(dir, file);
+                if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                    scope.emptyDirectory(curPath, false);
+                } else { // delete file
+                    fs.unlinkSync(curPath);
+                }
+            });
+            if (!firstDir) {
+                fs.rmdirSync(dir);
             }
-        });
-
-        if (this.isDebug()) {
-            helper.debug("Deleted: " + file);
         }
-
-        return success;
     },
 
     emptyTemp: function () {
-        var scope = this;
-        fs.readdir(this.tempPath, function (err, list) {
-            if (!err) {
-                for (var i = 0; i < list.length; i++) {
-                    scope.deleteFile(path.join(scope.tempPath, list[i]));
-                }
-            }
-        });
+        this.emptyDirectory(this.tempPath);
     },
 
     /**

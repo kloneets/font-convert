@@ -15,6 +15,7 @@
             <p>
                 <button id="chose-fonts" class="btn btn-success">Chose font/s</button>
                 <input id="fonts" type="file" multiple class="hide" accept=".ttf,.otf">
+                <input class="hide" type="file" id="save-to" nwdirectory />
 
                 <button id="clear-list" class="btn btn-primary btn-danger float-right hide">Clear list</button>
             </p>
@@ -40,14 +41,15 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-2">
+        <div class="col-3">
             <span id="loader" class="loader hide"></span>
         </div>
-        <div class="col-8 text-center">
+        <div class="col-6 text-center">
             <small id="status-bar"></small>
         </div>
-        <div class="col2">
+        <div class="col-3">
             <button class="btn btn-primary float-right hide" id="convert-fonts">Convert!</button>
+            <button class="btn btn-info float-right hide" id="pack-fonts">Save converted fonts to...</button>
         </div>
     </div>
 
@@ -117,7 +119,7 @@
 </div>
 
 <footer class="app-footer">
-    <p>Thanks to OS commyunity. Please do not use this software to steal fonts. Buy them or make your own!</p>
+    <p>Thanks to OS community. Please do not use this software to steal fonts. Buy them or make your own!</p>
 </footer>
 <script type="application/javascript" src="js/app.js"></script>
 
