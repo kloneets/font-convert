@@ -10,8 +10,6 @@
  * @todo pack app for windows
  * @todo pack app for macOs
  * @todo add icon
- *
- * @TODO refactor css write to async
  */
 "use strict";
 
@@ -615,7 +613,6 @@ const app = {
                                 scope.makeTTF(currentList[fontName].path, fontName).then((ttfFont) => {
                                     scope.makeFonts(ttfFont, fontName).then(() => {
                                         iteration++;
-                                        console.log(iteration, listLength);
                                         if (iteration === listLength) {
                                             resolve();
                                         }
@@ -628,7 +625,6 @@ const app = {
                                     scope.copy(currentList[fontName].path, scope.tempPath, ttfFont.fontFile);
                                     scope.makeFonts(ttfFont, fontName).then(() => {
                                         iteration++;
-                                        console.log(iteration, listLength);
                                         if (iteration === listLength) {
                                             resolve();
                                         }
@@ -644,12 +640,14 @@ const app = {
                     reject();
                 }
             }).then(() => {
-                scope.setStatusMessage("Generating CSS");
-                scope.generateCss();
-                scope.setStatusMessage("Font converting done. Proceed to save!");
-                helper.hide(scope.convertFontsButton);
-                helper.show(scope.packFontsButton);
-                helper.hide(scope.loader);
+                scope.generateCss().then(() => {
+                    scope.setStatusMessage("Font converting done. Proceed to save!");
+                    helper.hide(scope.convertFontsButton);
+                    helper.show(scope.packFontsButton);
+                    helper.hide(scope.loader);
+                }, (error) => {
+                    new Error("CSS Write error: " + error);
+                });
             }, () => {
                 scope.setStatusMessage("Font list is empty. Nothing to do");
                 helper.hide(scope.convertFontsButton);
@@ -677,30 +675,36 @@ const app = {
     makeFonts: function (ttfFont, fontName) {
         this.generatedFonts[fontName].ttf = path.join(ttfFont.fontPath, ttfFont.fontFile);
         this.generatedFonts[fontName].ttfName = ttfFont.fontFile;
-        return this.makeEOT(ttfFont, fontName).then(() => {
-            this.makeSVG(ttfFont).then((svgFont) => {
-                this.generatedFonts[fontName].svg = path.join(svgFont.fontPath, svgFont.fontFile);
-                this.generatedFonts[fontName].svgName = svgFont.fontFile;
+        return this.makeEOT(ttfFont, fontName)
+            .then(() => {
+                this.makeSVG(ttfFont).then((svgFont) => {
+                    this.generatedFonts[fontName].svg = path.join(svgFont.fontPath, svgFont.fontFile);
+                    this.generatedFonts[fontName].svgName = svgFont.fontFile;
 
+                }, (error) => {
+                    helper.debug("SVG error: " + error);
+                });
+            }, (error) => {
+                helper.debug("EOT error: " + error);
+            }).then(() => {
                 this.makeWOFF(ttfFont).then((woffFont) => {
                     this.generatedFonts[fontName].woff = path.join(woffFont.fontPath, woffFont.fontFile);
                     this.generatedFonts[fontName].woffName = woffFont.fontFile;
-
-                    this.makeWOFF2(ttfFont).then((woff2Font) => {
-                        this.generatedFonts[fontName].woff2 = path.join(woff2Font.fontPath, woff2Font.fontFile);
-                        this.generatedFonts[fontName].woff2Name = woff2Font.fontFile;
-                    }, (error) => {
-                        helper.debug("WOFF2 error: " + error);
-                    });
                 }, (error) => {
                     helper.debug("WOFF error: " + error);
                 });
             }, (error) => {
-                helper.debug("SVG error: " + error);
+                helper.debug("WOFF error: " + error);
+            }).then(() => {
+                this.makeWOFF2(ttfFont).then((woff2Font) => {
+                    this.generatedFonts[fontName].woff2 = path.join(woff2Font.fontPath, woff2Font.fontFile);
+                    this.generatedFonts[fontName].woff2Name = woff2Font.fontFile;
+                }, (error) => {
+                    helper.debug("WOFF2 error: " + error);
+                });
+            }, (error) => {
+                helper.debug("WOFF2 error: " + error);
             });
-        }, (error) => {
-            helper.debug("EOT error: " + error);
-        });
     },
 
     /**
@@ -712,7 +716,7 @@ const app = {
     ttfInfo: function (fontPath, ttfFont) {
         this.setStatusMessage(ttfFont + ": TTF info...");
         let script = path.join(process.cwd(), 'shell-scripts', 'ttfInfo.pe');
-        helper.debug("Getting ttf info...");
+        helper.debug("Getting ttf info: " + ttfFont);
         return this.fontForge(script, fontPath);
     },
 
@@ -725,7 +729,7 @@ const app = {
     makeTTF: function (otfFont, fontName) {
         this.setStatusMessage(fontName + ": OTF to TTF");
         let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
-        helper.debug("OTF to TTF...");
+        helper.debug("OTF to TTF: " + fontName);
         return this.fontForge(script, otfFont, 'ttf');
     },
 
@@ -751,7 +755,7 @@ const app = {
                 let eot = new Buffer(ttf2eot(ttf).buffer);
                 let fontFile = ttfFont.fontFile.replace(/\.ttf$/, '') + '.eot';
                 fs.writeFileSync(path.join(this.tempPath, fontFile), eot);
-                helper.debug("TTF to EOT...");
+                helper.debug("TTF to EOT: " + fontFile);
                 this.generatedFonts[fontName].eot = path.join(ttfFont.fontPath, fontFile);
                 this.generatedFonts[fontName].eotName = fontFile;
                 resolve(helper.extend({}, ttfFont, {fontFile: fontFile}));
@@ -765,7 +769,7 @@ const app = {
         this.setStatusMessage(ttfFont.fontFile + ": TTF to SVG");
         let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
         let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
-        helper.debug("TTF to SVG...");
+        helper.debug("TTF to SVG: " + ttfFont.fontFile);
         return this.fontForge(script, fontFile, 'svg');
     },
 
@@ -773,7 +777,7 @@ const app = {
         this.setStatusMessage(ttfFont.fontFile + ": TTF to WOFF");
         let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
         let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
-        helper.debug("TTF to WOFF...");
+        helper.debug("TTF to WOFF: " + ttfFont.fontFile);
         return this.fontForge(script, fontFile, 'woff');
     },
 
@@ -781,36 +785,42 @@ const app = {
         this.setStatusMessage(ttfFont.fontFile + ": TTF to WOFF2");
         let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
         let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
-        helper.debug("TTF to WOFF2...");
+        helper.debug("TTF to WOFF2: " + ttfFont.fontFile);
         return this.fontForge(script, fontFile, 'woff2');
     },
 
+    /**
+     * @return {Promise}
+     */
     generateCss: function () {
         this.setStatusMessage("Generating CSS");
         helper.debug(this.generatedFonts);
-        let css = "";
-        if (Object.keys(this.generatedFonts).length > 0) {
-            for (let fontName in this.generatedFonts) {
-                if (this.generatedFonts.hasOwnProperty(fontName)) {
-                    css += "@font-face {\n";
-                    css += "\tfont-family: '" + this.generatedFonts[fontName].name + "';\n";
-                    css += "\tfont-weight: '" + this.generatedFonts[fontName].weight + "';\n";
-                    css += "\tfont-style: '" + this.generatedFonts[fontName].style + "';\n";
-                    css += "\tsrc: url('../fonts/" + this.generatedFonts[fontName].eotName + "#iefix') format('embedded-opentype'),\n";
-                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woff2Name + "') format('woff2'),\n";
-                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woffName + "') format('woff'),\n";
-                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].ttfName + "') format('truetype'),\n";
-                    css += "\t\turl('../fonts/" + this.generatedFonts[fontName].svgName + "') format('svg');\n";
-                    css += "};\n\n";
+        return new Promise((resolve, reject) => {
+            let css = "";
+            if (Object.keys(this.generatedFonts).length > 0) {
+                for (let fontName in this.generatedFonts) {
+                    if (this.generatedFonts.hasOwnProperty(fontName)) {
+                        css += "@font-face {\n";
+                        css += "\tfont-family: '" + this.generatedFonts[fontName].name + "';\n";
+                        css += "\tfont-weight: '" + this.generatedFonts[fontName].weight + "';\n";
+                        css += "\tfont-style: '" + this.generatedFonts[fontName].style + "';\n";
+                        css += "\tsrc: url('../fonts/" + this.generatedFonts[fontName].eotName + "#iefix') format('embedded-opentype'),\n";
+                        css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woff2Name + "') format('woff2'),\n";
+                        css += "\t\turl('../fonts/" + this.generatedFonts[fontName].woffName + "') format('woff'),\n";
+                        css += "\t\turl('../fonts/" + this.generatedFonts[fontName].ttfName + "') format('truetype'),\n";
+                        css += "\t\turl('../fonts/" + this.generatedFonts[fontName].svgName + "') format('svg');\n";
+                        css += "};\n\n";
+                    }
                 }
             }
-        }
-        try {
-            fs.writeFileSync(path.join(this.tempPath, 'fonts-style.css'), css, "utf8");
+
             helper.debug(css);
-        } catch (e) {
-            helper.debug(e);
-        }
+
+            fs.writeFile(path.join(this.tempPath, 'fonts-style.css'), css, "utf8", (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
     },
 
     pack: function () {
