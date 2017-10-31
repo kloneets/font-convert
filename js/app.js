@@ -3,25 +3,35 @@
  * @author Janis Rublevskis <janis@xit.lv>
  * @todo check if fontforge installed on windows
  * @todo check if fontforge installed on osx
- * @todo add loader while initialising system
+ *
+ * @todo tune up html template
+ *
+ * @todo pack app for linux
+ * @todo pack app for windows
+ * @todo pack app for macOs
+ * @todo add icon
+ *
+ * @TODO refactor css write to async
  */
 "use strict";
 
-var path = require("path"),
+const path = require("path"),
     fs = require("fs"),
-    exec = require("child_process").execSync,
+    execSync = require("child_process").execSync,
+    exec = require("child_process").exec,
     bn = require("bootstrap.native"),
     os = require("os"),
     ttf2eot = require(path.resolve(process.cwd(), path.join('js', 'ttf2eot.js')));
 
 document.title += ' ' + process.env.npm_package_version;
 
-var win = nw.Window.get();
+const win = nw.Window.get();
+const App = nw.App;
 
-var helper = {
+const helper = {
     extend: function () {
-        for (var i = 1; i < arguments.length; i++)
-            for (var key in arguments[i])
+        for (let i = 1; i < arguments.length; i++)
+            for (let key in arguments[i])
                 if (arguments[i].hasOwnProperty(key))
                     arguments[0][key] = arguments[i][key];
         return arguments[0];
@@ -34,15 +44,15 @@ var helper = {
         if (selector.match(/^#/)) {
             selector = selector.replace(/^#/, '');
             this.addEvent(context || document, event, function (e) {
-                var found, el = e.target || e.srcElement;
+                let found, el = e.target || e.srcElement;
                 while (el && !(found = el.id === selector)) el = el.parentElement;
                 if (found) callback.call(el, e);
             });
         } else {
             this.addEvent(context || document, event, function (e) {
-                var qs = (context || document).querySelectorAll(selector);
+                let qs = (context || document).querySelectorAll(selector);
                 if (qs) {
-                    var el = e.target || e.srcElement, index;
+                    let el = e.target || e.srcElement, index;
                     while (el && ((index = Array.prototype.indexOf.call(qs, el)) === -1)) {
                         el = el.parentElement;
                     }
@@ -69,13 +79,13 @@ var helper = {
     },
 
     html2element: function (html) {
-        var template = document.createElement('template');
+        let template = document.createElement('template');
         template.innerHTML = html;
         return template.content.firstChild;
     },
     debugLines: 1,
     debug: function (data) {
-        var dw = this.createDebugWin();
+        let dw = this.createDebugWin();
         console.log(data);
         if (typeof data === 'object') {
             data = JSON.stringify(data);
@@ -83,9 +93,9 @@ var helper = {
         dw.value = "\n" + this.debugLines++ + '. ' + data.toString() + dw.value;
     },
     createDebugWin: function () {
-        var dw = document.getElementById('debug-window');
+        let dw = document.getElementById('debug-window');
         if (dw === null) {
-            var newDw = '<div class="form-group">' +
+            let newDw = '<div class="form-group">' +
                 '    <label for="exampleFormControlTextarea1">Debug window</label>' +
                 '    <textarea id="debug-window" class="form-control" id="exampleFormControlTextarea1" rows="3"></textarea>' +
                 '  </div>';
@@ -96,13 +106,13 @@ var helper = {
     }
 };
 
-var app = {
-
+const app = {
+    bigLoader: document.getElementById('big-loader'),
     init: function () {
         /**
          * All _blank links to external browser
          */
-        var scope = this;
+        let scope = this;
         helper.live('click', 'a[target=_blank]', function (event) {
             event.preventDefault();
             nw.Shell.openExternal(this.href);
@@ -122,6 +132,7 @@ var app = {
         this.generateFonts();
         this.pack();
         this.clickEvents();
+        helper.hide(this.bigLoader);
     },
 
     /** =========================== settings ===================================== **/
@@ -184,7 +195,7 @@ var app = {
             this.settings = helper.extend(this.settings, newSettings)
         }
 
-        var debugWindow = document.getElementById("debug-window");
+        let debugWindow = document.getElementById("debug-window");
         if (!this.settingsGet("debug")) {
             if (debugWindow) {
                 debugWindow = debugWindow.parentNode;
@@ -203,8 +214,8 @@ var app = {
      * @param settings object
      */
     saveSettings: function (settings) {
-        var filePath = path.join(nw.App.dataPath, this.settings.settingsFile);
-        var success = false;
+        let filePath = path.join(App.dataPath, this.settings.settingsFile);
+        let success = false;
         try {
             fs.writeFileSync(filePath, JSON.stringify(settings), "utf8");
             success = true;
@@ -240,11 +251,11 @@ var app = {
      * init settings
      */
     initSettings: function () {
-        var scope = this;
+        let scope = this;
         this.reloadSettings(this.defaultSettings);
-        var settings = {};
+        let settings = {};
         try {
-            settings = JSON.parse(fs.readFileSync(path.join(nw.App.dataPath, this.settings.settingsFile)).toString("utf-8"));
+            settings = JSON.parse(fs.readFileSync(path.join(App.dataPath, this.settings.settingsFile)).toString("utf-8"));
         } catch (e) {
             if (this.isDebug()) {
                 helper.debug('Settings file cannot be found! No saved yet');
@@ -253,13 +264,13 @@ var app = {
 
         this.reloadSettings(settings);
 
-        this.putSettingsToView(settings);
+        this.putSettingsToView(this.settings);
 
         helper.live('click', '#save-settings', function (event) {
             event.preventDefault();
-            var fontForgeField = document.getElementById('fontForgePath');
-            var fontForgePath = fontForgeField.value.replace(/^\s+/, '').replace(/\s+/, '').replace(/\r?\n|\r/g, '');
-            var canHide = true;
+            let fontForgeField = document.getElementById('fontForgePath');
+            let fontForgePath = fontForgeField.value.replace(/^\s+/, '').replace(/\s+/, '').replace(/\r?\n|\r/g, '');
+            let canHide = true;
             if (fontForgePath !== '' && fontForgePath !== settings.fontForgePath) {
                 if (scope.checkForFontForge(fontForgePath)) {
                     settings.fontForgePath = fontForgePath;
@@ -275,7 +286,7 @@ var app = {
             scope.reloadSettings(settings);
             scope.putSettingsToView(settings);
             if (!scope.saveSettings(scope.settings)) {
-                scope.showWarning("Could not save settings to system. Please check permissions for: <strong>" + nw.App.dataPath + "</strong>");
+                scope.showWarning("Could not save settings to system. Please check permissions for: <strong>" + App.dataPath + "</strong>");
             }
             if (canHide) {
                 scope.settingsModal.hide();
@@ -323,7 +334,7 @@ var app = {
         "italic": "Italic"
     },
 
-    tempPath: path.join(nw.App.dataPath, 'Temp'),
+    tempPath: path.join(App.dataPath, 'Temp'),
 
     isDebug: function () {
         return this.settings.debug === 1;
@@ -331,7 +342,7 @@ var app = {
 
     debugger: function () {
         if (this.isDebug()) {
-            helper.debug("App Config path: " + nw.App.dataPath);
+            helper.debug("App Config path: " + App.dataPath);
             helper.debug("Temp path:" + this.tempPath);
         }
     },
@@ -349,7 +360,7 @@ var app = {
      * @param text
      */
     showWarning: function (text) {
-        var warnings = document.getElementsByClassName('alert-danger');
+        let warnings = document.getElementsByClassName('alert-danger');
         if (warnings.length > 0) {
             warnings[0].innerHTML = text;
         } else {
@@ -358,10 +369,10 @@ var app = {
     },
 
     clickEvents: function () {
-        var scope = this;
+        let scope = this;
         helper.live('click', '.show-settings', function (event) {
-            var el = this;
-            var options = {
+            let el = this;
+            let options = {
                 focus: el.dataset.focus
             };
             event.preventDefault();
@@ -370,11 +381,11 @@ var app = {
     },
 
     fileChooser: function () {
-        var scope = this;
+        let scope = this;
         document.getElementById('chose-fonts').addEventListener('click', function (event) {
             event.preventDefault();
 
-            var chooser = document.querySelector("#fonts");
+            let chooser = document.querySelector("#fonts");
             chooser.addEventListener("change", function () {
                 scope.parseFonts(this.value);
                 scope.rebuildList();
@@ -391,10 +402,11 @@ var app = {
      * @returns {*}
      */
     parseFonts: function (fonts) {
+        helper.show(this.loader);
         if (fonts) {
             fonts = fonts.split(';');
-            for (var i = 0; i < fonts.length; i++) {
-                var ext = this.getExtension(fonts[i]);
+            for (let i = 0; i < fonts.length; i++) {
+                let ext = this.getExtension(fonts[i]);
                 if (this.allowedFontTypes.indexOf(ext) !== -1) {
                     if (!this.isDuplicate(fonts[i])) this.fontFiles.push(fonts[i]);
                 }
@@ -410,6 +422,7 @@ var app = {
             helper.hide(this.convertFontsButton);
             this.setStatusMessage("No fonts found. Please chose ttf or otf font file/s");
         }
+        helper.hide(this.loader);
     },
 
     getExtension: function (fontName) {
@@ -418,7 +431,7 @@ var app = {
 
     isDuplicate: function (font) {
         font = font.replace(/\.(otf|ttf)$/, '');
-        for (var i in this.fontFiles) {
+        for (let i in this.fontFiles) {
             if (this.fontFiles.hasOwnProperty(i)) {
                 if (this.fontFiles[i].replace(/\.(otf|ttf)$/, '') === font) {
                     return true;
@@ -429,16 +442,17 @@ var app = {
     },
 
     rebuildList: function () {
-        var tBody = document.querySelector("#font-table tbody");
+        helper.show(this.loader);
+        let tBody = document.querySelector("#font-table tbody");
 
-        var currentList = this.currentList();
+        let currentList = this.currentList();
 
         tBody.innerHTML = '';
 
-        for (var i = 0; i < this.fontFiles['length']; i++) {
-            var font = path.normalize(this.fontFiles[i]);
-            var fontName = font.split('/').pop();
-            var curWeight = null, curStyle = null, curName = '';
+        for (let i = 0; i < this.fontFiles['length']; i++) {
+            let font = path.normalize(this.fontFiles[i]);
+            let fontName = font.split('/').pop();
+            let curWeight = null, curStyle = null, curName = '';
 
             if (typeof currentList[fontName] !== 'undefined') {
                 curWeight = currentList[fontName].weight;
@@ -451,7 +465,7 @@ var app = {
                 curName = curName.replace(/-[a-z0-9]+$/i, '');
             }
 
-            var html = '<tr data-file="' + font + '" data-name="' + fontName + '">'
+            let html = '<tr data-file="' + font + '" data-name="' + fontName + '">'
                 + '<td class="strong">' + fontName + '</td>'
                 + '<td><input class="form-control" name="name[\'' + fontName + '\']" value="' + curName + '"></td>'
                 + '<td>' + this.makeSelect("weight['" + fontName + "']", this.weightOptions, curWeight) + '</td>'
@@ -460,15 +474,16 @@ var app = {
                 + '</tr>';
             helper.append(tBody, html);
         }
+        helper.hide(this.loader);
     },
 
     removeItem: function () {
-        var scope = this;
+        let scope = this;
         helper.live('click', '.remove-font', function (event) {
             event.preventDefault();
 
-            var row = this.parentNode.parentNode;
-            for (var i = 0; i < scope.fontFiles.length; i++) {
+            let row = this.parentNode.parentNode;
+            for (let i = 0; i < scope.fontFiles.length; i++) {
                 if (scope.fontFiles.hasOwnProperty(i)) {
                     if (scope.fontFiles[i] === row.dataset.file) {
                         scope.fontFiles.splice(i, 1);
@@ -490,10 +505,10 @@ var app = {
     },
 
     clearList: function () {
-        var scope = this;
+        let scope = this;
         this.clearButton.addEventListener('click', function (event) {
             event.preventDefault();
-            var rows = document.querySelector("#font-table tbody");
+            let rows = document.querySelector("#font-table tbody");
             rows.innerHTML = '';
             this.fontFiles = [];
             helper.hide(this);
@@ -502,7 +517,7 @@ var app = {
     },
 
     getWeight: function (font) {
-        var regexp;
+        let regexp;
         //thin
         regexp = /(extralightthin|extralightitalic)\.(ttf|otf)$/i;
         if (font.match(regexp)) return "100";
@@ -545,8 +560,8 @@ var app = {
     },
 
     makeSelect: function (name, options, current) {
-        var selectGroup = '<select class="form-control" name="' + name + '">';
-        for (var val in options) {
+        let selectGroup = '<select class="form-control" name="' + name + '">';
+        for (let val in options) {
             if (options.hasOwnProperty(val)) {
                 selectGroup += '<option value="' + val + '" ' + (current === val ? 'selected="selected"' : '') + '>' + options[val] + '</option>';
             }
@@ -556,14 +571,14 @@ var app = {
     },
 
     currentList: function () {
-        var tBody = document.querySelector("#font-table tbody");
-        var currentList = [];
+        let tBody = document.querySelector("#font-table tbody");
+        let currentList = [];
 
-        for (var i = 0, row; row = tBody.rows[i]; i++) {
-            var selects = row.getElementsByTagName('select');
-            var fontName = row.dataset.name;
-            var name = row.getElementsByTagName('input')[0].value;
-            var path = row.dataset.file;
+        for (let i = 0, row; row = tBody.rows[i]; i++) {
+            let selects = row.getElementsByTagName('select');
+            let fontName = row.dataset.name;
+            let name = row.getElementsByTagName('input')[0].value;
+            let path = row.dataset.file;
             currentList[fontName] = {
                 weight: selects[0].options[selects[0].selectedIndex].value,
                 style: selects[1].options[selects[1].selectedIndex].value,
@@ -576,93 +591,140 @@ var app = {
     },
 
     generateFonts: function () {
-        var scope = this;
+        let scope = this;
         this.convertFontsButton.addEventListener('click', function (event) {
             event.preventDefault();
-            var currentList = scope.currentList();
-            if (Object.keys(currentList).length > 0) {
-                for (var fontName in currentList) {
-                    if (currentList.hasOwnProperty(fontName)) {
-                        var ext = scope.getExtension(fontName);
-                        var ttfFont = null;
-                        scope.setStatusMessage(fontName);
-                        scope.copy(currentList[fontName].path, scope.tempPath);
-                        scope.generatedFonts[fontName] = {
-                            name: currentList[fontName].name,
-                            style: currentList[fontName].style,
-                            weight: currentList[fontName].weight
-                        };
-                        if (ext === 'otf') {
-                            ttfFont = scope.makeTTF(currentList[fontName].path);
-                            scope.setStatusMessage(fontName + ": OTF to TTF");
-                        } else {
-                            ttfFont = scope.ttfInfo(currentList[fontName].path);
-                            scope.copy(currentList[fontName].path, scope.tempPath, ttfFont.fontFile);
-                            scope.setStatusMessage(fontName + ": TTF info...");
+            helper.show(scope.loader);
+            new Promise((resolve, reject) => {
+                let currentList = scope.currentList();
+                let listLength = Object.keys(currentList).length;
+                if (listLength > 0) {
+                    let iteration = 0;
+                    for (let fontName in currentList) {
+                        if (currentList.hasOwnProperty(fontName)) {
+                            let ext = scope.getExtension(fontName);
+                            scope.setStatusMessage(fontName);
+                            scope.copy(currentList[fontName].path, scope.tempPath);
+                            scope.generatedFonts[fontName] = {
+                                name: currentList[fontName].name,
+                                style: currentList[fontName].style,
+                                weight: currentList[fontName].weight
+                            };
+
+                            if (ext === 'otf') {
+                                scope.makeTTF(currentList[fontName].path, fontName).then((ttfFont) => {
+                                    scope.makeFonts(ttfFont, fontName).then(() => {
+                                        iteration++;
+                                        console.log(iteration, listLength);
+                                        if (iteration === listLength) {
+                                            resolve();
+                                        }
+                                    });
+                                }, (err) => {
+                                    new Error("OTF to TTF error: " + err);
+                                });
+                            } else {
+                                scope.ttfInfo(currentList[fontName].path, fontName).then((ttfFont) => {
+                                    scope.copy(currentList[fontName].path, scope.tempPath, ttfFont.fontFile);
+                                    scope.makeFonts(ttfFont, fontName).then(() => {
+                                        iteration++;
+                                        console.log(iteration, listLength);
+                                        if (iteration === listLength) {
+                                            resolve();
+                                        }
+                                    });
+                                }, (err) => {
+                                    new Error("OTF to TTF error: " + err);
+                                });
+                            }
+
                         }
-                        scope.generatedFonts[fontName].ttf = path.join(ttfFont.fontPath, ttfFont.fontFile);
-                        scope.generatedFonts[fontName].ttfName = ttfFont.fontFile;
-                        scope.setStatusMessage(fontName + ": TTF to EOT");
-                        var eotFont = scope.makeEOT(ttfFont);
-                        scope.generatedFonts[fontName].eot = path.join(eotFont.fontPath, eotFont.fontFile);
-                        scope.generatedFonts[fontName].eotName = eotFont.fontFile;
-                        scope.setStatusMessage(fontName + ": TTF to SVG");
-                        var svgFont = scope.makeSVG(ttfFont);
-                        scope.generatedFonts[fontName].svg = path.join(svgFont.fontPath, svgFont.fontFile);
-                        scope.generatedFonts[fontName].svgName = svgFont.fontFile;
-                        scope.setStatusMessage(fontName + ": TTF to WOFF");
-                        var woffFont = scope.makeWOFF(ttfFont);
-                        scope.generatedFonts[fontName].woff = path.join(woffFont.fontPath, woffFont.fontFile);
-                        scope.generatedFonts[fontName].woffName = woffFont.fontFile;
-                        scope.setStatusMessage(fontName + ": TTF to WOFF2");
-                        var woff2Font = scope.makeWOFF2(ttfFont);
-                        scope.generatedFonts[fontName].woff2 = path.join(woff2Font.fontPath, woff2Font.fontFile);
-                        scope.generatedFonts[fontName].woff2Name = woff2Font.fontFile;
                     }
+                } else {
+                    reject();
                 }
+            }).then(() => {
                 scope.setStatusMessage("Generating CSS");
                 scope.generateCss();
                 scope.setStatusMessage("Font converting done. Proceed to save!");
                 helper.hide(scope.convertFontsButton);
                 helper.show(scope.packFontsButton);
-            } else {
+                helper.hide(scope.loader);
+            }, () => {
                 scope.setStatusMessage("Font list is empty. Nothing to do");
                 helper.hide(scope.convertFontsButton);
-            }
+                new Error("Error converting fonts");
+            });
         }, false);
     },
 
     /**
      *
-     * @param script
-     * @param font
-     * @param convertTo
-     * @returns {Buffer | string}
+     * @param script string
+     * @param font string
+     * @param convertTo string
+     * @return {Promise}
      */
     fontForge: function (script, font, convertTo) {
-        convertTo = convertTo || "";
-        var cmd = this.settingsGet('fontForgePath') + ' -script "' + script + '" "' + font + '" "' + this.tempPath + '" "' + convertTo + '"';
-        return JSON.parse(exec(cmd).toString("utf8"));
+        convertTo = convertTo || '';
+        let cmd = this.settingsGet('fontForgePath') + ' -script "' + script + '" "' + font + '" "' + this.tempPath + '" "' + convertTo + '"';
+
+        return new Promise((resolve, reject) => {
+            exec(cmd, (error, stdout) => error ? reject(error) : resolve(JSON.parse(stdout)));
+        });
+    },
+
+    makeFonts: function (ttfFont, fontName) {
+        this.generatedFonts[fontName].ttf = path.join(ttfFont.fontPath, ttfFont.fontFile);
+        this.generatedFonts[fontName].ttfName = ttfFont.fontFile;
+        return this.makeEOT(ttfFont, fontName).then(() => {
+            this.makeSVG(ttfFont).then((svgFont) => {
+                this.generatedFonts[fontName].svg = path.join(svgFont.fontPath, svgFont.fontFile);
+                this.generatedFonts[fontName].svgName = svgFont.fontFile;
+
+                this.makeWOFF(ttfFont).then((woffFont) => {
+                    this.generatedFonts[fontName].woff = path.join(woffFont.fontPath, woffFont.fontFile);
+                    this.generatedFonts[fontName].woffName = woffFont.fontFile;
+
+                    this.makeWOFF2(ttfFont).then((woff2Font) => {
+                        this.generatedFonts[fontName].woff2 = path.join(woff2Font.fontPath, woff2Font.fontFile);
+                        this.generatedFonts[fontName].woff2Name = woff2Font.fontFile;
+                    }, (error) => {
+                        helper.debug("WOFF2 error: " + error);
+                    });
+                }, (error) => {
+                    helper.debug("WOFF error: " + error);
+                });
+            }, (error) => {
+                helper.debug("SVG error: " + error);
+            });
+        }, (error) => {
+            helper.debug("EOT error: " + error);
+        });
     },
 
     /**
      *
+     * @param fontPath string
      * @param ttfFont string
      * @returns {*|Buffer|string}
      */
-    ttfInfo: function (ttfFont) {
-        var script = path.join(process.cwd(), 'shell-scripts', 'ttfInfo.pe');
+    ttfInfo: function (fontPath, ttfFont) {
+        this.setStatusMessage(ttfFont + ": TTF info...");
+        let script = path.join(process.cwd(), 'shell-scripts', 'ttfInfo.pe');
         helper.debug("Getting ttf info...");
-        return this.fontForge(script, ttfFont);
+        return this.fontForge(script, fontPath);
     },
 
     /**
      *
      * @param otfFont string
-     * @returns {*|Buffer|string}
+     * @param fontName string
+     * @returns {promise}
      */
-    makeTTF: function (otfFont) {
-        var script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
+    makeTTF: function (otfFont, fontName) {
+        this.setStatusMessage(fontName + ": OTF to TTF");
+        let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
         helper.debug("OTF to TTF...");
         return this.fontForge(script, otfFont, 'ttf');
     },
@@ -670,50 +732,65 @@ var app = {
     /**
      *
      * @param ttfFont object
-     * @returns {*}
+     * @param fontName string
+     * @returns {Promise}
      */
-    makeEOT: function (ttfFont) {
+    makeEOT: function (ttfFont, fontName) {
         /**
          * @typedef string ttfFont.fontPath
          * @typedef string ttfFont.fontFile
          * @typedef string ttfFont.fontName
          * @type {Buffer | string}
          */
-        var input = fs.readFileSync(path.join(ttfFont.fontPath, ttfFont.fontFile));
-        var ttf = new Uint8Array(input);
-        var eot = new Buffer(ttf2eot(ttf).buffer);
-        var fontFile = ttfFont.fontFile.replace(/\.ttf$/, '') + '.eot';
-        fs.writeFileSync(path.join(this.tempPath, fontFile), eot);
-        helper.debug("TTF to EOT...");
-        return helper.extend({}, ttfFont, {fontFile: fontFile});
+        this.setStatusMessage(ttfFont.fontFile + ": TTF to EOT");
+
+        return new Promise((resolve, reject) => {
+            try {
+                let input = fs.readFileSync(path.join(ttfFont.fontPath, ttfFont.fontFile));
+                let ttf = new Uint8Array(input);
+                let eot = new Buffer(ttf2eot(ttf).buffer);
+                let fontFile = ttfFont.fontFile.replace(/\.ttf$/, '') + '.eot';
+                fs.writeFileSync(path.join(this.tempPath, fontFile), eot);
+                helper.debug("TTF to EOT...");
+                this.generatedFonts[fontName].eot = path.join(ttfFont.fontPath, fontFile);
+                this.generatedFonts[fontName].eotName = fontFile;
+                resolve(helper.extend({}, ttfFont, {fontFile: fontFile}));
+            } catch (e) {
+                reject(e);
+            }
+        });
     },
 
     makeSVG: function (ttfFont) {
-        var fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
-        var script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
+        this.setStatusMessage(ttfFont.fontFile + ": TTF to SVG");
+        let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
+        let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
         helper.debug("TTF to SVG...");
         return this.fontForge(script, fontFile, 'svg');
     },
 
     makeWOFF: function (ttfFont) {
-        var fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
-        var script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
+        this.setStatusMessage(ttfFont.fontFile + ": TTF to WOFF");
+        let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
+        let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
         helper.debug("TTF to WOFF...");
         return this.fontForge(script, fontFile, 'woff');
     },
 
     makeWOFF2: function (ttfFont) {
-        var fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
-        var script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
+        this.setStatusMessage(ttfFont.fontFile + ": TTF to WOFF2");
+        let fontFile = path.join(ttfFont.fontPath, ttfFont.fontFile);
+        let script = path.join(process.cwd(), 'shell-scripts', 'convert.pe');
         helper.debug("TTF to WOFF2...");
         return this.fontForge(script, fontFile, 'woff2');
     },
 
     generateCss: function () {
+        this.setStatusMessage("Generating CSS");
         helper.debug(this.generatedFonts);
-        var css = "";
+        let css = "";
         if (Object.keys(this.generatedFonts).length > 0) {
-            for (var fontName in this.generatedFonts) {
+            for (let fontName in this.generatedFonts) {
                 if (this.generatedFonts.hasOwnProperty(fontName)) {
                     css += "@font-face {\n";
                     css += "\tfont-family: '" + this.generatedFonts[fontName].name + "';\n";
@@ -737,29 +814,31 @@ var app = {
     },
 
     pack: function () {
-        var scope = this;
+        let scope = this;
         this.packFontsButton.addEventListener('click', function (event) {
             event.preventDefault();
             document.getElementById("save-to").click();
         });
         document.getElementById('save-to').addEventListener('change', function (event) {
+            scope.setStatusMessage("Packing fonts");
+            helper.show(scope.loader);
             event.preventDefault();
-            if(this.value === '') return false;
+            if (this.value === '') return false;
             helper.debug("fired save to " + this.value);
             scope.setStatusMessage("Creating directories");
-            var savePath = this.value;
+            let savePath = this.value;
             if (!fs.existsSync(savePath)) {
                 fs.mkdirSync(savePath);
             }
 
 
-            var fontsDir = path.join(savePath, 'fonts');
+            let fontsDir = path.join(savePath, 'fonts');
             if (!fs.existsSync(fontsDir)) {
                 fs.mkdirSync(fontsDir);
             }
             // this.emptyDirectory(fontsDir);
 
-            var cssDir = path.join(savePath, 'css');
+            let cssDir = path.join(savePath, 'css');
             if (!fs.existsSync(cssDir)) {
                 fs.mkdirSync(cssDir);
             }
@@ -767,7 +846,7 @@ var app = {
 
             scope.setStatusMessage("Copying fonts");
             if (Object.keys(scope.generatedFonts).length > 0) {
-                for (var fontName in scope.generatedFonts) {
+                for (let fontName in scope.generatedFonts) {
                     if (scope.generatedFonts.hasOwnProperty(fontName)) {
                         scope.setStatusMessage("Copying: " + fontName);
                         scope.copy(scope.generatedFonts[fontName].ttf, fontsDir);
@@ -783,7 +862,7 @@ var app = {
             scope.copy(path.resolve('./', 'fonts-done-tpl.html'), savePath, 'readme.html');
             scope.setStatusMessage("Collecting garbage...");
             scope.emptyTemp();
-            var rows = document.querySelector("#font-table tbody");
+            let rows = document.querySelector("#font-table tbody");
             rows.innerHTML = '';
             this.fontFiles = [];
             scope.generatedFonts = [];
@@ -791,6 +870,7 @@ var app = {
             scope.setStatusMessage("All done!");
             nw.Shell.showItemInFolder(path.join(savePath, 'readme.html'));
             this.value = '';
+            helper.hide(scope.loader);
         }, false);
     },
 
@@ -799,16 +879,16 @@ var app = {
         if (!fs.existsSync(targetDir)) {
             fs.mkdirSync(targetDir);
         }
-        var targetFile = path.join(targetDir, newName);
+        let targetFile = path.join(targetDir, newName);
         fs.copyFileSync(sourceFile, targetFile);
     },
 
     emptyDirectory: function (dir, firstDir) {
         firstDir = firstDir || true;
-        var scope = this;
+        let scope = this;
         if (fs.existsSync(dir)) {
             fs.readdirSync(dir).forEach(function (file) {
-                var curPath = path.join(dir, file);
+                let curPath = path.join(dir, file);
                 if (fs.lstatSync(curPath).isDirectory()) { // recurse
                     scope.emptyDirectory(curPath, false);
                 } else { // delete file
@@ -830,12 +910,13 @@ var app = {
      */
     checkForFontForge: function (rewritePath) {
         rewritePath = rewritePath || false;
-        var fontForgePath = false;
-        var stdout = null;
+        helper.show(this.loader);
+        let fontForgePath = false;
+        let stdout = null;
         if (rewritePath) {
             try {
                 rewritePath = rewritePath.replace(/\r?\n|\r/g, '');
-                stdout = exec(rewritePath + ' -version');
+                stdout = execSync(rewritePath + ' -version');
                 this.settingsSet("fontForgePath", rewritePath);
                 if (this.isDebug()) {
                     helper.debug("Custom ff path: " + stdout.toString());
@@ -854,7 +935,7 @@ var app = {
                 break;
             case 'linux':
                 try {
-                    stdout = exec('command -v fontforge');
+                    stdout = execSync('command -v fontforge');
                     fontForgePath = stdout.toString();
                     if (this.isDebug()) {
                         helper.debug("command: " + fontForgePath);
@@ -877,21 +958,23 @@ var app = {
         if (!this.settingsGet("fontForgePath")) {
             this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it from <a target='_blank' href='https://fontforge.github.io'>FontForge official page</a> or provide path to executable in <a href='#' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
         }
+
+        helper.hide(this.loader);
     },
 
     buildMenu: function () {
 
-        var scope = this;
+        let scope = this;
 
-        var fileMenu = new nw.MenuItem({
+        let fileMenu = new nw.MenuItem({
             label: "File",
             key: "f",
             modifiers: "alt"
         });
 
-        var menu = new nw.Menu({type: "menubar"});
+        let menu = new nw.Menu({type: "menubar"});
 
-        var fileSubMenu = new nw.Menu();
+        let fileSubMenu = new nw.Menu();
         fileSubMenu.append(new nw.MenuItem({
             label: "Settings",
             click: function () {
@@ -904,7 +987,7 @@ var app = {
         fileSubMenu.append(new nw.MenuItem({
             label: "About",
             click: function () {
-                // todo: add version from package
+                document.getElementById('version-tag').innerHTML = process.env.npm_package_version;
                 scope.aboutModal.show();
             },
             key: "a",

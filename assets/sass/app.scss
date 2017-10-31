@@ -72,6 +72,25 @@ footer.app-footer {
     animation: fa-spin 1.1s infinite linear;
 }
 
+#big-loader {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    background: rgba(0, 0, 0, 0.8);
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    span.loader {
+        display: block;
+        width: 100px;
+        height: 100px;
+        animation: fa-spin 2s infinite linear;
+    }
+}
+
 .hide {
     display: none;
 }
