@@ -15,9 +15,9 @@
     "license": "MIT",
     "repository": "https://github.com/kloneets/font-convert",
     "dependencies": {
-        "bootstrap.native": "^2.0.17",
-        "microbuffer": "^1.0.0",
-        "nw": "^0.25.4"
+        "bootstrap.native": "*",
+        "microbuffer": "*",
+        "nw": "*"
     },
     "window": {
         "toolbar": true,
@@ -25,12 +25,13 @@
         "height": 600
     },
     "devDependencies": {
-        "bootstrap": "^4.0.0-beta.2",
-        "fontawesome-scss": "^2.0.4",
-        "gulp": "^3.9.1",
-        "gulp-concat-css": "^2.3.0",
-        "gulp-cssmin": "^0.2.0",
-        "gulp-sass": "^3.1.0",
-        "gulp-sourcemaps": "^2.6.1"
+        "bootstrap": "*",
+        "fontawesome-scss": "*",
+        "gulp": "*",
+        "gulp-concat-css": "*",
+        "gulp-cssmin": "*",
+        "gulp-sass": "*",
+        "gulp-sourcemaps": "*",
+        "nwjs-builder-phoenix": "*"
     }
 }

@@ -468,7 +468,7 @@ const app = {
                 + '<td><input class="form-control" name="name[\'' + fontName + '\']" value="' + curName + '"></td>'
                 + '<td>' + this.makeSelect("weight['" + fontName + "']", this.weightOptions, curWeight) + '</td>'
                 + '<td>' + this.makeSelect("style['" + fontName + "']", this.styleOptions, curStyle) + '</td>'
-                + '<td><a href="#" class="btn btn-sm btn-danger remove-font"><i class="delete"></i></a></td>'
+                + '<td><a href="%23" class="btn btn-sm btn-danger remove-font"><i class="delete"></i></a></td>'
                 + '</tr>';
             helper.append(tBody, html);
         }
@@ -966,7 +966,7 @@ const app = {
         }
 
         if (!this.settingsGet("fontForgePath")) {
-            this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it from <a target='_blank' href='https://fontforge.github.io'>FontForge official page</a> or provide path to executable in <a href='#' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
+            this.showWarning("Cannot Find dependency: <strong>fontforge</strong>. Please install it from <a target='_blank' href='https://fontforge.github.io'>FontForge official page</a> or provide path to executable in <a href='%23' data-focus='fontForgePath' class='show-settings'>Settings</a>!");
         }
 
         helper.hide(this.loader);
